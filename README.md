@@ -95,7 +95,7 @@ Install the required Go dependencies for the TUI:
 
 Download the project to your local machine:
 ```
-git clone https://github.com/<your-repo-name>.git  
+git clone https://github.com/azransyed/Gitea-SGW-TUI.git  
 cd Gitea-Terraform-Ansible-TUI
 ```
 
@@ -121,12 +121,13 @@ If the virtual environment is not activated, the TUI will fail to execute proper
 
 Ensure you have all the required Python libraries by running:
 ```
-pip install boto3 botocore ansible ansible-core jmespath  
+boto3 botocore ansible ansible-core jmespath  
 ```
 4. Run the Bubble Tea TUI
 
 With the virtual environment activated, navigate to the project directory and start the TUI:
 ```
+go mod tidy 
 go run main.go  
 ```
 
