@@ -1,0 +1,161 @@
+---
+- hosts: all
+  #remote_user: ssm-user
+  become: true #Only for Mounting the directory
+  vars:
+    ansible_connection: aws_ssm
+    ansible_aws_ssm_bucket_name: chai-gitea-nahi
+    ansible_aws_ssm_region: '{{region}}' # tfOutput.Region.Value
+    nfs_server: '{{nfs_server}}' # tfOutput.StorageGatewayIP.Value
+    nfs_share_name: '{{nfs_share_path}}' # tfOutput.NfsSharePath.Value
+    mount_point: '/mnt/gitea'
+    ssm_timeout: 60
+
+  tasks:
+    # Step 1: Update all packages
+    - name: Update all packages
+      dnf:
+        name: '*'
+        state: latest
+
+    - name: Remove gnupg2-minimal to avoid conflicts
+      yum:
+        name: gnupg2-minimal
+        state: absent
+
+    - name: Ensure gnupg2 is installed
+      yum:
+        name: gnupg2
+        state: present
+
+    # Step 2: Update all packages
+    - name: Install NFS utilities
+      dnf:
+        name:
+          - nfs-utils
+          - wget
+        state: present
+
+    # Step 2: Create Gitea group with GID 10100
+    - name: Create Gitea group with specific GID
+      ansible.builtin.group:
+        name: gitea
+        gid: 10100
+        state: present
+
+    # Step 3: Create Gitea User with UID and GID 10100
+    - name: Create Gitea user with specific GID
+      ansible.builtin.user:
+        name: gitea
+        uid: 10100
+        group: gitea
+        home: /home/gitea
+        create_home: yes
+        shell: /bin/bash
+        state: present
+
+    # Step 4: Ensure gitea user exits with correct UID and GID
+    - name: Ensure Gitea user exists with correct UID and GID
+      ansible.builtin.user:
+        name: gitea
+        uid: 10100
+        group: gitea
+        groups: gitea
+        state: present
+
+    # Step 5: Create the NFS mount point directory (This is owned by root)
+    - name: Create mount point directory
+      file:
+        path: '{{ mount_point }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    # Step 6: Mount the NFS Share (Required sudo)
+    - name: Mount NFS file share
+      ansible.builtin.mount:
+        path: '{{ mount_point }}'
+        src: '{{ nfs_server }}:{{ nfs_share_name }}'
+        fstype: nfs
+        opts: nolock,hard
+        state: mounted
+
+    # Step 7: Persist the NFS Mount in /etc/fstab (Required sudo)
+    - name: Persist NFS mount in /etc/fstab
+      ansible.builtin.mount:
+        path: '{{ mount_point }}'
+        src: '{{ nfs_server }}:{{ nfs_share_name }}'
+        fstype: nfs
+        opts: nolock,hard
+        state: present
+
+    # Step 8: Verify NFS Mount using ansible
+    - name: Verify the NFS mount is functioning properly
+      ansible.builtin.command:
+        cmd: stat -f -c "%T" {{ mount_point }}
+      register: nfs_stat
+      failed_when: nfs_stat.stdout != "nfs"
+
+    - name: Debug NFS mount verification
+      debug:
+        msg: 'NFS is successfully mounted at {{ mount_point }}'
+
+    # Step 9: To ensure if mount is Functioning properly (Required sudo)
+    - name: Test write access to NFS mount
+      command: touch {{ mount_point }}/test-file
+      register: nfs_test
+      failed_when: nfs_test.rc != 0
+
+    - name: Remove test file from NFS mount
+      file:
+        path: '{{ mount_point }}/test-file'
+        state: absent
+
+    # Step 10: Change ownership of the mount point to git after Mounting
+    - name: Change ownership of mount point to gitea
+      ansible.builtin.file:
+        path: '{{ mount_point }}'
+        owner: gitea
+        group: gitea
+        recurse: yes
+      become: true
+
+    # Step 11: Install and configure Gitea using the Role
+    - name: Install and configure Gitea
+      include_role:
+        name: gitea-roles
+      vars:
+        gitea_user: gitea
+        gitea_group: gitea
+        gitea_version: latest
+        gitea_version_check: true
+        gitea_protocol: http
+        gitea_fqdn: '{{ gitea_fqdn }}' #domain
+        gitea_ssh_domain: '{{ gitea_fqdn }}' #domain
+        gitea_http_domain: '{{ gitea_fqdn }}' #domain
+        gitea_root_url: '{{ gitea_root_url }}' #rootURL
+        gitea_lfs_server_enabled: true
+        gitea_http_port: 3000
+        gitea_start_ssh: true
+        gitea_http_listen: 0.0.0.0
+        gitea_home: /mnt/gitea
+        gitea_user_home: '{{ gitea_home }}'
+        gitea_executable_path: /usr/local/bin/gitea
+        gitea_configuration_path: /etc/gitea
+        gitea_run_mode: prod
+        gitea_db_type: sqlite3
+        gitea_db_user: gitea
+        gitea_db_path: '{{ gitea_home }}/data/gitea.db'
+        gitea_lfs_storage_type: local
+        gitea_lfs_content_path: '{{ gitea_home }}/data/lfs'
+
+    # Step 12: Verify Gitea Service Gitea
+    - name: Verify Gitea service status
+      command: systemctl is-active gitea
+      register: gitea_status
+      failed_when: gitea_status.stdout != "active"
+
+    - name: Debug Gitea service status
+      debug:
+        msg: 'Gitea Service is active and running'
