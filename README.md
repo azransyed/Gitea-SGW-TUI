@@ -87,6 +87,64 @@ Install the required Go dependencies for the TUI:
     ACM Region-Specific Certificates:
     Ensure your AWS CLI is set to the correct region where your ACM certificate is located, as it is not shared across regions.
 
-▶️ Setup and Run
 
-    Clone the repository:
+
+
+▶️ Setup and Run
+1. Clone the Repository
+
+Download the project to your local machine:
+```
+git clone https://github.com/<your-repo-name>.git  
+cd Gitea-Terraform-Ansible-TUI
+```
+
+
+2. Activate the Python Virtual Environment (Important Step 🚨)
+
+Before proceeding, you must activate the Python virtual environment. This ensures that all dependencies, including boto3, ansible, ansible.builtin, and others, are properly isolated and available.
+
+For Linux/Mac:
+
+```
+   source venv/bin/activate  
+```
+For Windows:
+
+    venv\Scripts\activate  
+
+⚠️ Important:
+If the virtual environment is not activated, the TUI will fail to execute properly due to missing dependencies.
+
+
+3. Install Python Dependencies
+
+Ensure you have all the required Python libraries by running:
+```
+pip install boto3 botocore ansible ansible-core jmespath  
+```
+4. Run the Bubble Tea TUI
+
+With the virtual environment activated, navigate to the project directory and start the TUI:
+```
+go run main.go  
+```
+
+
+🎯 What Happens Next?
+
+The TUI will guide you through configuring the AWS setup with the following inputs:
+
+    1.Instance Type: Choose the instance type for your EC2 instance (e.g., t2.micro).
+    2.Public IP of the User's PC: Enter your PC's public IP for activating the NFS Storage Gateway.
+    3.Region: Specify the AWS region where the VPC will be deployed (e.g., us-east-1).
+    4.Gitea Base Domain: Provide the base domain for accessing the Gitea website (e.g., gitea.example.com).
+    5.ACM ARN Certificate: Select the ARN of the ACM certificate for securing the website.
+
+⚙️ Once You Complete the Configuration
+
+    Terraform:
+    The tool will deploy the necessary AWS infrastructure, including the VPC, EC2 instance, Application Load Balancer (ALB), NFS Storage Gateway, and other resources.
+
+    Ansible:
+    The tool will configure Gitea with all required settings, including attaching the NFS storage, setting up the domain, and securing it with the ACM certificate.
