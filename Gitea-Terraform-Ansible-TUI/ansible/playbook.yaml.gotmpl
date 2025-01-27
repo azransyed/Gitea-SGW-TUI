@@ -1,3 +1,4 @@
+# vim: filetype=yaml
 ---
 - hosts: all
   #remote_user: ssm-user
@@ -5,9 +6,9 @@
   vars:
     ansible_connection: aws_ssm
     ansible_aws_ssm_bucket_name: chai-gitea-nahi
-    ansible_aws_ssm_region: '{{region}}' # tfOutput.Region.Value
-    nfs_server: '{{nfs_server}}' # tfOutput.StorageGatewayIP.Value
-    nfs_share_name: '{{nfs_share_path}}' # tfOutput.NfsSharePath.Value
+    ansible_aws_ssm_region: '{{ .Region }}' # tfOutput.Region.Value
+    nfs_server: '{{ .NfsServer }}' # tfOutput.StorageGatewayIP.Value
+    nfs_share_name: '{{ .NfsSharePath }}' # tfOutput.NfsSharePath.Value
     mount_point: '/mnt/gitea'
     ssm_timeout: 60
 
@@ -66,7 +67,7 @@
     # Step 5: Create the NFS mount point directory (This is owned by root)
     - name: Create mount point directory
       file:
-        path: '{{ mount_point }}'
+        path: '{{ `{{ mount_point }}` }}'
         state: directory
         owner: root
         group: root
@@ -75,8 +76,8 @@
     # Step 6: Mount the NFS Share (Required sudo)
     - name: Mount NFS file share
       ansible.builtin.mount:
-        path: '{{ mount_point }}'
-        src: '{{ nfs_server }}:{{ nfs_share_name }}'
+        path: '{{ `{{ mount_point }}` }}'
+        src: '{{ `{{ nfs_server }}` }}:{{ `{{ nfs_share_name }}` }}'
         fstype: nfs
         opts: nolock,hard
         state: mounted
@@ -84,8 +85,8 @@
     # Step 7: Persist the NFS Mount in /etc/fstab (Required sudo)
     - name: Persist NFS mount in /etc/fstab
       ansible.builtin.mount:
-        path: '{{ mount_point }}'
-        src: '{{ nfs_server }}:{{ nfs_share_name }}'
+        path: '{{ `{{ mount_point }}` }}'
+        src: '{{ `{{ nfs_server }}` }}:{{ `{{ nfs_share_name }}` }}'
         fstype: nfs
         opts: nolock,hard
         state: present
@@ -93,29 +94,29 @@
     # Step 8: Verify NFS Mount using ansible
     - name: Verify the NFS mount is functioning properly
       ansible.builtin.command:
-        cmd: stat -f -c "%T" {{ mount_point }}
+        cmd: stat -f -c "%T" {{ `{{ mount_point }}` }}
       register: nfs_stat
       failed_when: nfs_stat.stdout != "nfs"
 
     - name: Debug NFS mount verification
       debug:
-        msg: 'NFS is successfully mounted at {{ mount_point }}'
+        msg: 'NFS is successfully mounted at {{ `{{ mount_point }}` }}'
 
     # Step 9: To ensure if mount is Functioning properly (Required sudo)
     - name: Test write access to NFS mount
-      command: touch {{ mount_point }}/test-file
+      command: touch {{ `{{ mount_point }}` }}/test-file
       register: nfs_test
       failed_when: nfs_test.rc != 0
 
     - name: Remove test file from NFS mount
       file:
-        path: '{{ mount_point }}/test-file'
+        path: '{{ `{{ mount_point }}` }}/test-file'
         state: absent
 
     # Step 10: Change ownership of the mount point to git after Mounting
     - name: Change ownership of mount point to gitea
       ansible.builtin.file:
-        path: '{{ mount_point }}'
+        path: '{{ `{{ mount_point }}` }}'
         owner: gitea
         group: gitea
         recurse: yes
@@ -131,24 +132,24 @@
         gitea_version: latest
         gitea_version_check: true
         gitea_protocol: http
-        gitea_fqdn: '{{ gitea_fqdn }}' #domain
-        gitea_ssh_domain: '{{ gitea_fqdn }}' #domain
-        gitea_http_domain: '{{ gitea_fqdn }}' #domain
-        gitea_root_url: '{{ gitea_root_url }}' #rootURL
+        gitea_fqdn: '{{ .Fqdn }}' #domain
+        gitea_ssh_domain: '{{ .Fqdn }}' #domain
+        gitea_http_domain: '{{ .Fqdn }}' #domain
+        gitea_root_url: '{{ .RootURL }}' #rootURL
         gitea_lfs_server_enabled: true
         gitea_http_port: 3000
         gitea_start_ssh: true
         gitea_http_listen: 0.0.0.0
         gitea_home: /mnt/gitea
-        gitea_user_home: '{{ gitea_home }}'
+        gitea_user_home: '{{ `{{ gitea_home }}` }}'
         gitea_executable_path: /usr/local/bin/gitea
         gitea_configuration_path: /etc/gitea
         gitea_run_mode: prod
         gitea_db_type: sqlite3
         gitea_db_user: gitea
-        gitea_db_path: '{{ gitea_home }}/data/gitea.db'
+        gitea_db_path: '{{ `{{ gitea_home }}` }}/data/gitea.db'
         gitea_lfs_storage_type: local
-        gitea_lfs_content_path: '{{ gitea_home }}/data/lfs'
+        gitea_lfs_content_path: '{{ `{{ gitea_home }}` }}/data/lfs'
 
     # Step 12: Verify Gitea Service Gitea
     - name: Verify Gitea service status

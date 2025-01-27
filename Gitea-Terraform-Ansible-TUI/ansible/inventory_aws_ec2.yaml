@@ -1,8 +1,0 @@
-plugin: aws_ec2
-regions:
-  - "{{region}}" # tfOutput.Region.Value
-hostnames: 
-  - "{{hostname}}" # tfOutput.GiteaInstanceID.Value
-filters:
-  tag:Environment: development
-  tag:Service: gitea

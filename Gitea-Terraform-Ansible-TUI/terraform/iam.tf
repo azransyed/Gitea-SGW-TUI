@@ -1,3 +1,31 @@
+resource "aws_iam_policy" "session_manager_policy" {
+  for_each    = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  name        = "SessionManagerPolicy"
+  path        = "/Gitea/"
+  description = "Permissions for Session Manager logging"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "kms:Decrypt",
+        ],
+        Effect   = "Allow",
+        Resource = var.ssm_kms_key_arn
+      },
+      {
+        Action = [
+          "kms:GenerateDataKey",
+        ],
+        Effect   = "Allow",
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+
 # IAM Role for SSM Access 
 resource "aws_iam_role" "ssm_role" {
   name = "SSM-Role"
@@ -18,10 +46,22 @@ resource "aws_iam_role" "ssm_role" {
 
 
 #Attach the SSM policy to the Role
+resource "aws_iam_role_policy_attachment" "session_manager_attach" {
+  for_each   = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  role       = aws_iam_role.ssm_role.name
+  policy_arn = aws_iam_policy.session_manager_policy[each.key].arn
+}
+
 resource "aws_iam_role_policy_attachment" "ssm_attach" {
   role       = aws_iam_role.ssm_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_role_policy" {
+  for_each   = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  role       = aws_iam_role.ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 

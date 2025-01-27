@@ -4,3 +4,6 @@ instance_type                 = "{{ .InstanceType }}"
 ingress_cidr_block_activation = "{{ .PublicIP }}"
 region                        = "{{ .Region }}"
 acm_certificate_arn           = "{{ .CertificateArn }}"
+{{- with .SsmKmsKeyArn }}
+ssm_kms_key_arn               = "{{ . }}"
+{{ end }}

@@ -43,6 +43,7 @@ type ConfigData struct {
 	Region         string
 	Domain         string
 	RootURL        string
+	SsmKmsKeyArn   *string
 }
 
 // for Error Message
@@ -53,6 +54,7 @@ type model struct {
 	instanceType  string
 	step          int
 	selectedARN   string
+	kmsARN        *string
 	err           error
 	list          list.Model
 	keyMap        KeyMap
@@ -101,8 +103,15 @@ var (
 // To Start the TUI
 func main() {
 	p := tea.NewProgram(initialModel())
-	if _, err := p.Run(); err != nil {
+	_m, err := p.Run()
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	m := _m.(model)
+
+	if m.quitting {
+		return
 	}
 
 	// Display message afterthe TUI exits
@@ -116,15 +125,9 @@ func main() {
 
 	}
 
-	// Step 2: Run 'terraform plan'
-	if err := runTerraform("plan"); err != nil {
-		fmt.Printf("\nError during %sterraform plan%s: %v\n", pinkBold, reset, err)
-		os.Exit(1)
-	}
-
-	// Step 3: Run 'terraform apply -auto-approve'
-	if err := runTerraform("apply -auto-approve"); err != nil {
-		fmt.Printf("\nError during %sterraform apply -auto-approve%s: %v\n", pinkBold, reset, err)
+	// Step 2: Run 'terraform apply -auto-approve'
+	if err := runTerraform("apply"); err != nil {
+		fmt.Printf("\nError during %sterraform apply%s: %v\n", pinkBold, reset, err)
 		os.Exit(1)
 	}
 
@@ -134,13 +137,15 @@ func main() {
 		os.Exit(1)
 	}
 	replacements := map[string]string{
-		"{{region}}":         tfOutput.Region.Value,
-		"{{hostname}}":       tfOutput.GiteaInstanceID.Value,
-		"{{nfs_share_path}}": tfOutput.NfsSharePath.Value,
-		"{{nfs_server}}":     tfOutput.StorageGatewayIP.Value,
+		"Region":       tfOutput.Region.Value,
+		"InstanceID":   tfOutput.GiteaInstanceID.Value,
+		"NfsSharePath": tfOutput.NfsSharePath.Value,
+		"NfsServer":    tfOutput.StorageGatewayIP.Value,
+		"Fqdn":         m.domain,
+		"RootURL":      m.rootURL,
 	}
-	inventoryPath := "ansible/inventory_aws_ec2.yaml"
-	playbookPath := "ansible/playbook.yaml"
+	inventoryPath := "ansible/inventory_aws_ec2.yaml.gotmpl"
+	playbookPath := "ansible/playbook.yaml.gotmpl"
 
 	if err := updateFile(inventoryPath, replacements); err != nil {
 		fmt.Printf("\nError updating inventory file: %v\n", err)
@@ -219,41 +224,46 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keyMap.Enter):
-			if m.step == 1 {
+			switch m.step {
+			case 1:
 				//	m.textInput.Placeholder = "Enter your desired EC2 instance type"
 				m.instanceType = m.textInput.Value()
 				m.step = 2
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: 82.129.80.111/32"
 				return m, nil
-			} else if m.step == 2 {
+			case 2:
 				m.publicIP = m.textInput.Value()
 				m.step = 3
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: us-east-1"
 				return m, nil
-			} else if m.step == 3 {
+			case 3:
 				m.region = m.textInput.Value()
 				m.step = 4
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: example.com)"
 				return m, nil
-			} else if m.step == 4 {
+			case 4:
 				m.domain = m.textInput.Value()
-
-				err := updatePlaybookYaml(m.domain) // Pass the domain to playbook.yaml
-				if err != nil {
-					m.err = err
-					return m, nil
-				}
 				m.textInput.Reset() // Clear input for the next use
 				m.step = 5
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: arn:aws:acm:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+				return m, nil
+			case 5:
+				kmsARN := m.textInput.Value()
+				if kmsARN != "" {
+					m.kmsARN = &kmsARN
+				}
+				m.textInput.Reset() // Clear input for the next use
+				m.step = 6
 				m.textInput.Blur()
 				return m, fetchCertificateCmd() // Fetch certificate
-			} else if m.step == 5 {
+			case 6:
 				selectedItem := m.list.SelectedItem()
 				if selectedItem != nil {
-					m.selectedARN = selectedItem.(list.Item).FilterValue()
+					m.selectedARN = selectedItem.FilterValue()
 					//Populate ConfigData with Instnace type and selected ARN
 					data := ConfigData{
 						InstanceType:   m.instanceType,
@@ -261,6 +271,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						PublicIP:       m.publicIP,
 						Region:         m.region,
 						Domain:         m.domain,
+						RootURL:        fmt.Sprintf("http://%s/", m.domain),
+						SsmKmsKeyArn:   m.kmsARN,
 					}
 					m.textInput.PlaceholderStyle = placeholderStyle
 					m.textInput.TextStyle = inputStyle
@@ -269,6 +281,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					if err := generateTerraformFile(data); err != nil {
 						fmt.Println("Error generating Terraform file:", err)
+						m.quitting = true
 						return m, tea.Quit
 					}
 					return m, tea.Quit
@@ -277,6 +290,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keyMap.Esc):
+			m.quitting = true
 			return m, tea.Quit // Quit on esc
 
 		}
@@ -296,7 +310,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Update LIst or text or text input depending on the step
-	if m.step < 5 {
+	if m.step < 6 {
 		m.textInput, cmd = m.textInput.Update(msg)
 	} else {
 		m.list, cmd = m.list.Update(msg)
@@ -335,6 +349,12 @@ func (m model) View() string {
 			"(Press Enter to confirm, Esc to quit)",
 		)
 	case 5:
+		return fmt.Sprintf(
+			headingStyle.Render("Enter KMS ARN (optional) 🔒:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 6:
 		return fmt.Sprintf(
 			headingStyle.Render("Select a certificate ARN 🔒:\n\n%s\n\n%s"),
 			m.list.View(),
@@ -394,57 +414,7 @@ func generateTerraformFileCmd(data ConfigData) tea.Cmd {
 
 // Function to Generate Terraform File after the input from user
 func generateTerraformFile(data ConfigData) error {
-
-	// Check if the template file exists
-	if _, err := os.Stat("terraform/terraform_template.tfvars"); os.IsNotExist(err) {
-		return fmt.Errorf("template file terraform/terraform_template.tfvars does not exist")
-	}
-
-	tmpl, err := template.ParseFiles("terraform/terraform_template.tfvars")
-	if err != nil {
-		return fmt.Errorf("error parsing template file: %w", err)
-	}
-
-	outputFile, err := os.Create("terraform/terraform.tfvars")
-	if err != nil {
-		return fmt.Errorf("error creating output file: %w", err)
-	}
-	defer outputFile.Close()
-
-	// Execute the template with the provided data
-	err = tmpl.Execute(outputFile, data)
-	if err != nil {
-		return fmt.Errorf("error executing template: %w", err)
-	}
-
-	return nil
-}
-
-// Function to the Update Domain URL for in the playbook.yaml for ansible
-func updatePlaybookYaml(domain string) error {
-	// Define the file path for app.ini
-	filePath := "ansible/playbook.yaml"
-
-	// Load the existing app.ini file
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("Failed to read playbook.yaml: %w", err)
-	}
-
-	// Construct the ROOT URL
-	rootURL := "https://" + domain + "/"
-
-	// Replace placeholders with the new domain values
-	updatedContent := strings.ReplaceAll(string(content), "{{ gitea_fqdn }}", domain)
-	updatedContent = strings.ReplaceAll(updatedContent, "{{ gitea_root_url }}", rootURL)
-
-	// Write the Updated content back to the playbook.yaml
-	err = os.WriteFile(filePath, []byte(updatedContent), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to update a playbook.yaml: %w", err)
-	}
-
-	return nil
+	return updateFile("terraform/terraform.tfvars.gotmpl", data)
 }
 
 // //////////////////////////////////////////////////////////
@@ -464,6 +434,7 @@ func runTerraform(command string) error {
 	// Prepare and executes the command
 	cmd := exec.Command("terraform", strings.Fields(command)...)
 	cmd.Dir = "./terraform"
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -490,25 +461,29 @@ func getTerraformOutput() (*TerraformOutput, error) {
 }
 
 // Function to Update the Ansible playbook
-func updateFile(filepath string, replacements map[string]string) error {
-	content, err := os.ReadFile(filepath)
+func updateFile(filepath string, replacements any) error {
+	// Check if the template file exists
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		return fmt.Errorf("template file %s does not exist", filepath)
+	}
+
+	tmpl, err := template.ParseFiles(filepath)
 	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", filepath, err)
+		return fmt.Errorf("error parsing template file: %w", err)
 	}
 
-	updatedContent := string(content)
-	//	fmt.Printf("Original content of %s:\n%s\n", filepath, updatedContent) // Added new
+	outputFile, err := os.Create(strings.TrimSuffix(filepath, ".gotmpl"))
+	if err != nil {
+		return fmt.Errorf("error creating output file: %w", err)
+	}
+	defer outputFile.Close()
 
-	for placeholder, value := range replacements {
-		//	fmt.Printf("Replacing %s with %s\n", placeholder, value) // Added new
-		updatedContent = strings.ReplaceAll(updatedContent, placeholder, value)
+	// Execute the template with the provided data
+	err = tmpl.Execute(outputFile, replacements)
+	if err != nil {
+		return fmt.Errorf("error executing template: %w", err)
 	}
 
-	//	fmt.Printf("Updated content of %s:\n%s\n", filepath, updatedContent)
-
-	if err := os.WriteFile(filepath, []byte(updatedContent), 0644); err != nil {
-		return fmt.Errorf("failed to write file %s:%w", filepath, err)
-	}
 	return nil
 }
 
@@ -523,6 +498,7 @@ func runAnsiblePlaybook() error {
 	// Prepare and execute the playbook command
 	cmd := exec.Command("bash", "-c", "ansible-playbook -i inventory_aws_ec2.yaml playbook.yaml -vvv ")
 	cmd.Dir = "./ansible"
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

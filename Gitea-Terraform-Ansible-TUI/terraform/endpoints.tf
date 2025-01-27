@@ -75,3 +75,32 @@ resource "aws_vpc_endpoint" "ec2_endpoint" {
   subnet_ids          = [aws_subnet.private.id]
 }
 
+resource "aws_vpc_endpoint" "ec2messages" {
+  for_each            = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.ec2messages"
+  vpc_endpoint_type   = "Interface"
+  security_group_ids  = [aws_security_group.ssm_https.id]
+  private_dns_enabled = true
+  subnet_ids          = [aws_subnet.private.id]
+}
+
+resource "aws_vpc_endpoint" "kms" {
+  for_each            = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.kms"
+  vpc_endpoint_type   = "Interface"
+  security_group_ids  = [aws_security_group.ssm_https.id]
+  private_dns_enabled = true
+  subnet_ids          = [aws_subnet.private.id]
+}
+
+resource "aws_vpc_endpoint" "cloudwatch_logs" {
+  for_each            = var.ssm_kms_key_arn != null ? toset(["with_kms_encryption"]) : toset([])
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  security_group_ids  = [aws_security_group.ssm_https.id]
+  private_dns_enabled = true
+  subnet_ids          = [aws_subnet.private.id]
+}

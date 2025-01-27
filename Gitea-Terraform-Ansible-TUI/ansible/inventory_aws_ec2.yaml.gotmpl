@@ -1,0 +1,9 @@
+# vim: filetype=yaml
+plugin: aws_ec2
+regions:
+  - "{{ .Region }}" # tfOutput.Region.Value 
+hostnames: 
+  - "{{ .InstanceID }}" # tfOutput.GiteaInstanceID.Value
+filters:
+  tag:Environment: development
+  tag:Service: gitea

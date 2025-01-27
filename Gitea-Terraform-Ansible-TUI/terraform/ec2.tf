@@ -1,7 +1,20 @@
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023*"]
+  }
+}
+
 # Create the EC2 Instance in the Private Subnet
 resource "aws_instance" "private" {
   depends_on                  = [aws_vpc.main]
-  ami                         = "ami-06b21ccaeff8cd686" # Amazon Linux 2023 AMI for us-east-1 only
+  ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.private.id
   associate_public_ip_address = false
@@ -13,6 +26,10 @@ resource "aws_instance" "private" {
     Name        = "Gitea Private Instance"
     Service     = "gitea"
     Environment = "development"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
   }
 }
 

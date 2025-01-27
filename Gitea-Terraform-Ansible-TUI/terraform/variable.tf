@@ -1,3 +1,9 @@
+variable "ssm_kms_key_arn" {
+  type        = string
+  description = "The ARN of the KMS key used to encrypt the SSM connection"
+  default     = null
+}
+
 # Variable for Instance Type
 variable "instance_type" {
   description = "EC2 instance type"
