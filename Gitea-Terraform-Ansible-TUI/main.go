@@ -302,7 +302,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = certItem{arn: cert}
 		}
 		m.list.SetItems(items)
-		m.step = 5
+		m.step = 6
+		return m, nil
 
 	case errMsg:
 		m.err = msg //Handle error
