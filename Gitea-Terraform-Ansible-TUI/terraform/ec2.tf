@@ -50,7 +50,7 @@ module "ec2_sgw" {
 
 # Module for NFS SHARE 
 module "nfs_share" {
-  source        = "aws-ia/storagegateway/aws//modules/s3-nfs-share"
+  source        = "../modules/s3-nfs-share"
   share_name    = "nfs_share_test"
   gateway_arn   = module.sgw.storage_gateway.arn
   bucket_arn    = module.s3_bucket.s3_bucket_arn
