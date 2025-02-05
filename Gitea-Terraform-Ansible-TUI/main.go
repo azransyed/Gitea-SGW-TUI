@@ -142,7 +142,7 @@ func main() {
 		"NfsSharePath": tfOutput.NfsSharePath.Value,
 		"NfsServer":    tfOutput.StorageGatewayIP.Value,
 		"Fqdn":         m.domain,
-		"RootURL":      m.rootURL,
+		"RootURL":      fmt.Sprintf("http://%s/", m.domain),
 	}
 	inventoryPath := "ansible/inventory_aws_ec2.yaml.gotmpl"
 	playbookPath := "ansible/playbook.yaml.gotmpl"
