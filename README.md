@@ -51,28 +51,14 @@ Install Terraform from the official Terraform website.
 
     terraform --version
 
-🔗 Python
+🔗 `uvx`
 
-    Install Python (version 3.8 or higher).
-    Set up a virtual environment:
+Install [`uv`](https://github.com/astral-sh/uv)
 
-    python3 -m venv venv  
-    source venv/bin/activate  # On Linux/Mac  
-    venv\Scripts\activate     # On Windows  
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh 
+```
 
-🔗 Ansible
-
-    Install Ansible and its dependencies:
-
-        pip install ansible boto3 botocore  
-
-🔗 Dependencies
-
-    Python Libraries:
-    Make sure to install the following Python libraries inside your virtual environment:
-    pip install boto3 botocore ansible
-
-  
 
 🔗 Bubble Tea TUI:
 Install the required Go dependencies for the TUI:
@@ -80,9 +66,6 @@ Install the required Go dependencies for the TUI:
     go mod tidy  
 
 ⚠️ Disclaimers
-
-    Enable Virtual Environment:
-    Always activate your Python virtual environment before running the TUI or executing any Ansible playbooks to avoid dependency conflicts.
 
     ACM Region-Specific Certificates:
     Ensure your AWS CLI is set to the correct region where your ACM certificate is located, as it is not shared across regions.
@@ -99,31 +82,7 @@ git clone https://github.com/azransyed/Gitea-SGW-TUI.git
 cd Gitea-Terraform-Ansible-TUI
 ```
 
-
-2. Activate the Python Virtual Environment (Important Step 🚨)
-
-Before proceeding, you must activate the Python virtual environment. This ensures that all dependencies, including boto3, ansible, ansible.builtin, and others, are properly isolated and available.
-
-For Linux/Mac:
-
-```
-   source venv/bin/activate  
-```
-For Windows:
-
-    venv\Scripts\activate  
-
-⚠️ Important:
-If the virtual environment is not activated, the TUI will fail to execute properly due to missing dependencies.
-
-
-3. Install Python Dependencies
-
-Ensure you have all the required Python libraries by running:
-```
-boto3 botocore ansible ansible-core jmespath  
-```
-4. Run the Bubble Tea TUI
+2. Run the Bubble Tea TUI
 
 With the virtual environment activated, navigate to the project directory and start the TUI:
 ```

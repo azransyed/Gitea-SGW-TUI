@@ -497,7 +497,7 @@ func runAnsiblePlaybook() error {
 	fmt.Printf("\nRunning: %s\n\n", fullCommand)
 
 	// Prepare and execute the playbook command
-	cmd := exec.Command("bash", "-c", "ansible-playbook -i inventory_aws_ec2.yaml playbook.yaml -vvv ")
+	cmd := exec.Command("uvx", strings.Split("--python 3.11 --with-requirements requirements.txt --from ansible-core ansible-playbook -i inventory_aws_ec2.yaml playbook.yaml -vvv", " ")...)
 	cmd.Dir = "./ansible"
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
