@@ -99,12 +99,60 @@ The TUI will guide you through configuring the AWS setup with the following inpu
     2.Public IP of the User's PC: Enter your PC's public IP for activating the NFS Storage Gateway.
     3.Region: Specify the AWS region where the VPC will be deployed (e.g., us-east-1).
     4.Gitea Base Domain: Provide the base domain for accessing the Gitea website (e.g., gitea.example.com).
-    5.ACM ARN Certificate: Select the ARN of the ACM certificate for securing the website.
+    5.OIDC Authentication (OAuth2 Setup): Configure authentication using OAuth2 and Instructions are provided below.
+    6.KMS ARN (Optional): If using AWS KMS for encryption, provide the KMS ARN. If not required, leave this blank.
+    7.ACM ARN Certificate: Select the ARN of the ACM certificate for securing the website.
 
-⚙️ Once You Complete the Configuration
+
+🔑 Setting Up OIDC Authentication
+
+To enable OAuth2 authentication, you need to enter the following details correctly:
+ 
+    1. Authentication Name / OAuth Application Name
+    - This should match the identity provider configuration. If using Auth0, enter `auth0`.
+    
+    2. OAuth2 Provider
+    - The type of OAuth provider. For this setup, use `openidConnect` enter this value in same format.
+
+    3. Client ID (Key)
+     - This is the unique identifier provided by your OAuth2 provider when you create an application.
+
+    4. Client Secret
+    - This is the secret key provided by the OAuth2 provider, used to authenticate requests.
+
+    5. Auto Discover URL
+    - This is the full URL required for auto-discovery of authentication settings.
+    - Example: `https://login.example.org/.well-known/openid-configuration`
+    - Typically, the provider only gives you the middle part (`login.example.org`), so make sure you enter the full URL correctly.
+    
+
+🔗 Tips for OAuth2 Setup:
+https://docs.gitea.com/development/oauth2-provider#endpoints
+
+
+🚨 Important Notice:
+
+1.  If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
+
+2.  An admin user will also be created during setup.
+
+3.  You can modify the default admin username and password in ansible/playbook.yaml.gotmpl before running the playbook.
+
+Following these steps correctly ensures a smooth setup process with authentication enabled! 🚀
+    
+
+
+⚙️ Important Once You Complete the Configuration
 
     Terraform:
     The tool will deploy the necessary AWS infrastructure, including the VPC, EC2 instance, Application Load Balancer (ALB), NFS Storage Gateway, and other resources.
 
     Ansible:
     The tool will configure Gitea with all required settings, including attaching the NFS storage, setting up the domain, and securing it with the ACM certificate.
+
+    DNS Configuration (GoDaddy Setup):
+    - Once Terraform and Ansible have completed their tasks, go to the AWS Management Console.
+    - Navigate to the Load Balancer section and locate the ALB that was created.
+    - Copy the DNS name of the ALB.
+    - Go to your GoDaddy DNS settings and create a CNAME record, pointing your domain (gitea.example.com) to the ALB's DNS name.
+    - This step ensures that your domain resolves correctly to the Gitea instance.
