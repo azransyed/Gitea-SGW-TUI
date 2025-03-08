@@ -150,6 +150,9 @@
         gitea_db_path: '{{ `{{ gitea_home }}` }}/data/gitea.db'
         gitea_lfs_storage_type: local
         gitea_lfs_content_path: '{{ `{{ gitea_home }}` }}/data/lfs'
+        gitea_allow_only_external_registration: true
+        gitea_show_registration_button: false
+        gitea_oauth2_enabled: true
 
     # Step 12: Verify Gitea Service Gitea
     - name: Verify Gitea service status
@@ -160,3 +163,45 @@
     - name: Debug Gitea service status
       debug:
         msg: 'Gitea Service is active and running'
+    
+    # Step 13: Pause Task for Gitea
+    - name: Pause to allow Gitea to fully start
+      pause:
+        seconds: 500
+
+    # step 14: Restart Gitea
+    - name: Restart Gitea service
+      systemd:
+        name: gitea
+        state: restarted
+        enabled: yes
+      become: true
+
+    # Step 15: Create a Admin user for Gitea
+    - name: Create a Admin User
+      command: |
+        sudo -u gitea gitea --config /etc/gitea/gitea.ini admin user create --username admin --password 123456789 --email admin@gmail.com --admin=true
+      async: 120
+      poll: 5
+
+    # Step 16: Configure OIDC for Gitea
+    - name: Configure OIDC for Gitea 
+      command: gitea --config /etc/gitea/gitea.ini admin auth add-oauth \
+        --name '{{ .OAuthName }}' \
+        --provider '{{ .OAuthProvider }}' \
+        --key '{{ .OAuthKey }}' \
+        --secret '{{ .OAuthSecret }}' \
+        --auto-discover-url '{{ .OAuthAutoDiscoverURL }}'
+      become: true
+      become_user: gitea
+      async: 120
+      poll: 5
+
+    - name: Debug OIDC Result
+      debug:
+        var: oidc_result
+
+    # Step 15: Restart Gitea Service
+    - name: Restart Gitea Service
+      command: |
+        sudo systemctl restart gitea

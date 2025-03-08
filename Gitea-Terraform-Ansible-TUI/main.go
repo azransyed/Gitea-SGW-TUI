@@ -50,21 +50,26 @@ type ConfigData struct {
 type errMsg error
 
 type model struct {
-	textInput     textinput.Model
-	instanceType  string
-	step          int
-	selectedARN   string
-	kmsARN        *string
-	err           error
-	list          list.Model
-	keyMap        KeyMap
-	publicIP      string
-	region        string
-	domain        string
-	rootURL       string
-	spinner       spinner.Model
-	statusMessage string
-	quitting      bool
+	textInput            textinput.Model
+	instanceType         string
+	step                 int
+	selectedARN          string
+	kmsARN               *string
+	err                  error
+	list                 list.Model
+	keyMap               KeyMap
+	publicIP             string
+	region               string
+	domain               string
+	oauthName            string // For Application NAMe
+	oauthProvider        string // For OAuth Provider
+	oauthKey             string // For Client ID (Key)
+	oauthSecret          string // FOr Client Secret
+	oauthAutoDiscoverURL string // FOr Auto Discover URL
+	rootURL              string
+	spinner              spinner.Model
+	statusMessage        string
+	quitting             bool
 }
 
 // Struct for the keys which such as arrow keys and enter keys which will be used in Selection of AWS ACM Certificate ARN
@@ -116,7 +121,6 @@ func main() {
 
 	// Display message afterthe TUI exits
 	fmt.Printf("\n%sTUI exited. Starting Terraform setup...%s\n", pinkBold, reset)
-	//fmt.Println("\nTUI exited. Starting Terraform setup...")
 
 	//Step 1: Run `terraform init`
 	if err := runTerraform("init"); err != nil {
@@ -125,7 +129,7 @@ func main() {
 
 	}
 
-	// Step 2: Run 'terraform apply -auto-approve'
+	// Step 2: Run 'terraform apply'
 	if err := runTerraform("apply"); err != nil {
 		fmt.Printf("\nError during %sterraform apply%s: %v\n", pinkBold, reset, err)
 		os.Exit(1)
@@ -137,12 +141,18 @@ func main() {
 		os.Exit(1)
 	}
 	replacements := map[string]string{
-		"Region":       tfOutput.Region.Value,
-		"InstanceID":   tfOutput.GiteaInstanceID.Value,
-		"NfsSharePath": tfOutput.NfsSharePath.Value,
-		"NfsServer":    tfOutput.StorageGatewayIP.Value,
-		"Fqdn":         m.domain,
-		"RootURL":      fmt.Sprintf("http://%s/", m.domain),
+		"Region":               tfOutput.Region.Value,
+		"InstanceID":           tfOutput.GiteaInstanceID.Value,
+		"NfsSharePath":         tfOutput.NfsSharePath.Value,
+		"NfsServer":            tfOutput.StorageGatewayIP.Value,
+		"Fqdn":                 m.domain,
+		"RootURL":              fmt.Sprintf("https://%s/", m.domain),
+		"OAuthName":            m.oauthName,            // Passes Oauth Application Name
+		"OAuthProvider":        m.oauthProvider,        // Passes oauth Provider
+		"OAuthKey":             m.oauthKey,             // Passes Client ID Key
+		"OAuthSecret":          m.oauthSecret,          // Passes Client Secret
+		"OAuthAutoDiscoverURL": m.oauthAutoDiscoverURL, // Passes AUto Discover URL
+
 	}
 	inventoryPath := "ansible/inventory_aws_ec2.yaml.gotmpl"
 	playbookPath := "ansible/playbook.yaml.gotmpl"
@@ -161,7 +171,7 @@ func main() {
 
 	// Waits for 2 Minutes before Running Ansible Playbook
 	fmt.Printf("\n%sWaiting for 2 minutes before running the Ansible playbook 👻 🕙...%s\n", pinkBold, reset)
-	time.Sleep(2 * time.Minute) // Change kar haan
+	time.Sleep(2 * time.Minute) // Timer for Ansible Job after Terraform Finishes
 
 	// Run the Ansible Playbook
 	if err := runAnsiblePlaybook(); err != nil {
@@ -210,7 +220,7 @@ func (d customDelegate) Render(w, h int, item list.Item, _ bool) string {
 	return item.FilterValue() // Render the full text without any cut of value shown
 }
 
-// THE BLINK we will add the color
+// The Blinker for Text input
 func (m model) Init() tea.Cmd {
 	return textinput.Blink
 }
@@ -226,7 +236,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Enter):
 			switch m.step {
 			case 1:
-				//	m.textInput.Placeholder = "Enter your desired EC2 instance type"
 				m.instanceType = m.textInput.Value()
 				m.step = 2
 				m.textInput.SetValue("")
@@ -249,18 +258,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.Reset() // Clear input for the next use
 				m.step = 5
 				m.textInput.SetValue("")
-				m.textInput.Placeholder = "eg: arn:aws:acm:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+				m.textInput.Placeholder = "eg: auth0" //
 				return m, nil
 			case 5:
+				m.oauthName = m.textInput.Value()
+				m.step = 6
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: openidConnect" //
+				return m, nil
+			case 6:
+				m.oauthProvider = m.textInput.Value()
+				m.step = 7
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: e2a9d7b4-58c6-4f83-ae19-09b26f5d17cd " //
+				return m, nil
+			case 7:
+				m.oauthKey = m.textInput.Value()
+				m.step = 8
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: K8f@x!P3r#Z5sT7vLqW2 " //
+				return m, nil
+			case 8:
+				m.oauthSecret = m.textInput.Value()
+				m.step = 9
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: https://login.example.org/.well-known/openid-configuration" //
+				return m, nil
+			case 9:
+				m.oauthAutoDiscoverURL = m.textInput.Value()
+				m.step = 10 // Moves to KMS ARN Step
+				m.textInput.SetValue("")
+				m.textInput.Placeholder = "eg: arn:aws:acm:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+				return m, nil
+			case 10:
 				kmsARN := m.textInput.Value()
 				if kmsARN != "" {
 					m.kmsARN = &kmsARN
 				}
 				m.textInput.Reset() // Clear input for the next use
-				m.step = 6
+				m.step = 11
 				m.textInput.Blur()
 				return m, fetchCertificateCmd() // Fetch certificate
-			case 6:
+			case 11:
 				selectedItem := m.list.SelectedItem()
 				if selectedItem != nil {
 					m.selectedARN = selectedItem.FilterValue()
@@ -271,7 +310,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						PublicIP:       m.publicIP,
 						Region:         m.region,
 						Domain:         m.domain,
-						RootURL:        fmt.Sprintf("http://%s/", m.domain),
+						RootURL:        fmt.Sprintf("https://%s/", m.domain),
 						SsmKmsKeyArn:   m.kmsARN,
 					}
 					m.textInput.PlaceholderStyle = placeholderStyle
@@ -302,7 +341,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = certItem{arn: cert}
 		}
 		m.list.SetItems(items)
-		m.step = 6
+		m.step = 11
 		return m, nil
 
 	case errMsg:
@@ -311,7 +350,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Update LIst or text or text input depending on the step
-	if m.step < 6 {
+	if m.step < 11 {
 		m.textInput, cmd = m.textInput.Update(msg)
 	} else {
 		m.list, cmd = m.list.Update(msg)
@@ -351,13 +390,43 @@ func (m model) View() string {
 		)
 	case 5:
 		return fmt.Sprintf(
-			headingStyle.Render("Enter KMS ARN (optional) 🔒:\n\n%s\n\n%s"),
+			headingStyle.Render("Enter OAuth Appilcation Name (e.g., auth0) 🙇:\n\n%s\n\n%s"),
 			m.textInput.View(),
 			"(Press Enter to confirm, Esc to quit)",
 		)
 	case 6:
 		return fmt.Sprintf(
-			headingStyle.Render("Select a certificate ARN 🔒:\n\n%s\n\n%s"),
+			headingStyle.Render("Enter OAuth Provider (e.g., openidConnect) 💿:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 7:
+		return fmt.Sprintf(
+			headingStyle.Render("Enter Client ID (Key) (e.g., e2a9d7b4-58c6-) 👀:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 8:
+		return fmt.Sprintf(
+			headingStyle.Render("Enter Client Secret (e.g., K8f@x!P3r#Z5sT7vLqW2) 🔒:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 9:
+		return fmt.Sprintf(
+			headingStyle.Render("Enter Full Auto Discover URL (e.g., https://login.example.org/.well-known/openid-configuration) 🌐:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 10:
+		return fmt.Sprintf(
+			headingStyle.Render("Enter KMS ARN (optional) 🔒:\n\n%s\n\n%s"),
+			m.textInput.View(),
+			"(Press Enter to confirm, Esc to quit)",
+		)
+	case 11:
+		return fmt.Sprintf(
+			headingStyle.Render("Select a certificate ARN 🎰:\n\n%s\n\n%s"),
 			m.list.View(),
 			"(Use ↑/↓ to navigate, Enter to select, Esc to quit)",
 		)
@@ -438,8 +507,6 @@ func runTerraform(command string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	//fmt.Printf("\nRunning: %s\n\n", fullCommand)
 
 	// Run the command and return any error encounterd
 	return cmd.Run()
