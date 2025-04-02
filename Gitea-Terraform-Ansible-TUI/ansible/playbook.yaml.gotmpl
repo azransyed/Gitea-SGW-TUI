@@ -177,14 +177,7 @@
         enabled: yes
       become: true
 
-    # Step 15: Create a Admin user for Gitea
-    - name: Create a Admin User
-      command: |
-        sudo -u gitea gitea --config /etc/gitea/gitea.ini admin user create --username admin --password 123456789 --email admin@gmail.com --admin=true
-      async: 120
-      poll: 5
-
-    # Step 16: Configure OIDC for Gitea
+    # Step 15: Configure OIDC for Gitea
     - name: Configure OIDC for Gitea 
       command: gitea --config /etc/gitea/gitea.ini admin auth add-oauth \
         --name '{{ .OAuthName }}' \
