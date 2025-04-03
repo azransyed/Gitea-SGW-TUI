@@ -181,7 +181,7 @@
     - name: Configure OIDC for Gitea 
       command: gitea --config /etc/gitea/gitea.ini admin auth add-oauth \
         --name '{{ .OAuthName }}' \
-        --provider '{{ .OAuthProvider }}' \
+        --provider openidConnect \
         --key '{{ .OAuthKey }}' \
         --secret '{{ .OAuthSecret }}' \
         --auto-discover-url '{{ .OAuthAutoDiscoverURL }}'
