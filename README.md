@@ -84,7 +84,7 @@ cd Gitea-Terraform-Ansible-TUI
 
 2. Run the Bubble Tea TUI
 
-With the virtual environment activated, navigate to the project directory and start the TUI:
+Navigate to the project directory and start the TUI:
 ```
 go mod tidy 
 go run main.go  
@@ -111,16 +111,13 @@ To enable OAuth2 authentication, you need to enter the following details correct
     1. Authentication Name / OAuth Application Name
     - This should match the identity provider configuration. If using Auth0, enter `auth0`.
     
-    2. OAuth2 Provider
-    - The type of OAuth provider. For this setup, use `openidConnect` enter this value in same format.
-
-    3. Client ID (Key)
+    2. Client ID (Key)
      - This is the unique identifier provided by your OAuth2 provider when you create an application.
 
-    4. Client Secret
+    3. Client Secret
     - This is the secret key provided by the OAuth2 provider, used to authenticate requests.
 
-    5. Auto Discover URL
+    4. Auto Discover URL
     - This is the full URL required for auto-discovery of authentication settings.
     - Example: `https://login.example.org/.well-known/openid-configuration`
     - Typically, the provider only gives you the middle part (`login.example.org`), so make sure you enter the full URL correctly.
@@ -133,7 +130,7 @@ https://docs.gitea.com/development/oauth2-provider#endpoints
 🚨 Important Notice:
 
 
-> **Warning**: If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
+> **Warning**: If you enter incorrect values,the Terraform and Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
 
 
 Following these steps correctly ensures a smooth setup process with authentication enabled! 🚀
