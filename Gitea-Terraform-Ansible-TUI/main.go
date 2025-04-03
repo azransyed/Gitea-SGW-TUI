@@ -61,8 +61,7 @@ type model struct {
 	publicIP             string
 	region               string
 	domain               string
-	oauthName            string // For Application NAMe
-	oauthProvider        string // For OAuth Provider
+	oauthName            string // For Application NAME
 	oauthKey             string // For Client ID (Key)
 	oauthSecret          string // FOr Client Secret
 	oauthAutoDiscoverURL string // FOr Auto Discover URL
@@ -148,7 +147,6 @@ func main() {
 		"Fqdn":                 m.domain,
 		"RootURL":              fmt.Sprintf("https://%s/", m.domain),
 		"OAuthName":            m.oauthName,            // Passes Oauth Application Name
-		"OAuthProvider":        m.oauthProvider,        // Passes oauth Provider
 		"OAuthKey":             m.oauthKey,             // Passes Client ID Key
 		"OAuthSecret":          m.oauthSecret,          // Passes Client Secret
 		"OAuthAutoDiscoverURL": m.oauthAutoDiscoverURL, // Passes AUto Discover URL
@@ -264,42 +262,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.oauthName = m.textInput.Value()
 				m.step = 6
 				m.textInput.SetValue("")
-				m.textInput.Placeholder = "eg: openidConnect" //
-				return m, nil
-			case 6:
-				m.oauthProvider = m.textInput.Value()
-				m.step = 7
-				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: e2a9d7b4-58c6-4f83-ae19-09b26f5d17cd " //
 				return m, nil
-			case 7:
+			case 6:
 				m.oauthKey = m.textInput.Value()
-				m.step = 8
+				m.step = 7
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: K8f@x!P3r#Z5sT7vLqW2 " //
 				return m, nil
-			case 8:
+			case 7:
 				m.oauthSecret = m.textInput.Value()
-				m.step = 9
+				m.step = 8
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: https://login.example.org/.well-known/openid-configuration" //
 				return m, nil
-			case 9:
+			case 8:
 				m.oauthAutoDiscoverURL = m.textInput.Value()
-				m.step = 10 // Moves to KMS ARN Step
+				m.step = 9 // Moves to KMS ARN Step
 				m.textInput.SetValue("")
 				m.textInput.Placeholder = "eg: arn:aws:acm:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
 				return m, nil
-			case 10:
+			case 9:
 				kmsARN := m.textInput.Value()
 				if kmsARN != "" {
 					m.kmsARN = &kmsARN
 				}
 				m.textInput.Reset() // Clear input for the next use
-				m.step = 11
+				m.step = 10
 				m.textInput.Blur()
 				return m, fetchCertificateCmd() // Fetch certificate
-			case 11:
+			case 10:
 				selectedItem := m.list.SelectedItem()
 				if selectedItem != nil {
 					m.selectedARN = selectedItem.FilterValue()
@@ -341,7 +333,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = certItem{arn: cert}
 		}
 		m.list.SetItems(items)
-		m.step = 11
+		m.step = 10
 		return m, nil
 
 	case errMsg:
@@ -350,7 +342,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Update LIst or text or text input depending on the step
-	if m.step < 11 {
+	if m.step < 10 {
 		m.textInput, cmd = m.textInput.Update(msg)
 	} else {
 		m.list, cmd = m.list.Update(msg)
@@ -396,35 +388,29 @@ func (m model) View() string {
 		)
 	case 6:
 		return fmt.Sprintf(
-			headingStyle.Render("Enter OAuth Provider (e.g., openidConnect) 💿:\n\n%s\n\n%s"),
+			headingStyle.Render("Enter Client ID (Key) (e.g., e2a9d7b4-58c6-) 👀:\n\n%s\n\n%s"),
 			m.textInput.View(),
 			"(Press Enter to confirm, Esc to quit)",
 		)
 	case 7:
 		return fmt.Sprintf(
-			headingStyle.Render("Enter Client ID (Key) (e.g., e2a9d7b4-58c6-) 👀:\n\n%s\n\n%s"),
+			headingStyle.Render("Enter Client Secret (e.g., K8f@x!P3r#Z5sT7vLqW2) 🔒:\n\n%s\n\n%s"),
 			m.textInput.View(),
 			"(Press Enter to confirm, Esc to quit)",
 		)
 	case 8:
 		return fmt.Sprintf(
-			headingStyle.Render("Enter Client Secret (e.g., K8f@x!P3r#Z5sT7vLqW2) 🔒:\n\n%s\n\n%s"),
+			headingStyle.Render("Enter Full Auto Discover URL (e.g., https://login.example.org/.well-known/openid-configuration) 🌐:\n\n%s\n\n%s"),
 			m.textInput.View(),
 			"(Press Enter to confirm, Esc to quit)",
 		)
 	case 9:
 		return fmt.Sprintf(
-			headingStyle.Render("Enter Full Auto Discover URL (e.g., https://login.example.org/.well-known/openid-configuration) 🌐:\n\n%s\n\n%s"),
-			m.textInput.View(),
-			"(Press Enter to confirm, Esc to quit)",
-		)
-	case 10:
-		return fmt.Sprintf(
 			headingStyle.Render("Enter KMS ARN (optional) 🔒:\n\n%s\n\n%s"),
 			m.textInput.View(),
 			"(Press Enter to confirm, Esc to quit)",
 		)
-	case 11:
+	case 10:
 		return fmt.Sprintf(
 			headingStyle.Render("Select a certificate ARN 🎰:\n\n%s\n\n%s"),
 			m.list.View(),
