@@ -133,7 +133,7 @@ https://docs.gitea.com/development/oauth2-provider#endpoints
 🚨 Important Notice:
 
 
-If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
+> **Warning**: If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
 
 
 Following these steps correctly ensures a smooth setup process with authentication enabled! 🚀
