@@ -132,11 +132,9 @@ https://docs.gitea.com/development/oauth2-provider#endpoints
 
 🚨 Important Notice:
 
-1.  If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
 
-2.  An admin user will also be created during setup.
+If you enter incorrect values,the Ansible job will fail and use the same formating as given in the example. Double-check all values before proceeding.
 
-3.  You can modify the default admin username and password in ansible/playbook.yaml.gotmpl before running the playbook.
 
 Following these steps correctly ensures a smooth setup process with authentication enabled! 🚀
     
